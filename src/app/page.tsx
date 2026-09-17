@@ -25,15 +25,14 @@ export default async function Home() {
         Independent UK care software comparisons backed by verified sources.
       </p>
 
-      {software?.some((p) => p.slug === "nourish-care") &&
-        software?.some((p) => p.slug === "carelinelive") && (
-          <Link
-            href="/compare/nourish-care-vs-carelinelive"
-            className="mt-4 inline-block text-sm underline"
-          >
-            Compare Nourish Care vs CareLineLive
-          </Link>
-        )}
+      {software && software.length > 1 && (
+        <Link
+          href="/compare"
+          className="mt-4 inline-block text-sm underline"
+        >
+          Compare software
+        </Link>
+      )}
 
       <div className="mt-8 grid gap-6">
         {software?.map((product) => (

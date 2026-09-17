@@ -18,22 +18,27 @@ import {
 } from "@/lib/software";
 
 /**
- * Comparison slugs are of the form "<slug-a>-vs-<slug-b>". Because software
- * slugs may themselves contain hyphens, we resolve the pair against the real
- * list of software slugs in the database rather than guessing where the
- * "-vs-" boundary falls. This keeps the route reusable for any future pair
- * of products without hardcoding specific slugs.
+ * Comparison slugs are of the form "<slug-a>-vs-<slug-b>". Software slugs may
+ * themselves contain hyphens, so we split on the literal "-vs-" separator
+ * rather than naively splitting on every hyphen. This keeps the route
+ * generic and reusable for any future pair of product slugs.
  */
-function resolveComparisonSlugs(comparison: string, knownSlugs: string[]) {
-  for (const slugA of knownSlugs) {
-    for (const slugB of knownSlugs) {
-      if (slugA !== slugB && `${slugA}-vs-${slugB}` === comparison) {
-        return [slugA, slugB] as const;
-      }
-    }
+function parseComparisonSlug(comparison: string): [string, string] | null {
+  const separator = "-vs-";
+  const index = comparison.indexOf(separator);
+
+  if (index === -1) {
+    return null;
   }
 
-  return null;
+  const slugA = comparison.slice(0, index);
+  const slugB = comparison.slice(index + separator.length);
+
+  if (!slugA || !slugB) {
+    return null;
+  }
+
+  return [slugA, slugB];
 }
 
 function pricingSummary(pricing: Pricing[]) {
@@ -65,32 +70,35 @@ export default async function ComparePage({
 }: PageProps<"/compare/[comparison]">) {
   const { comparison } = await params;
 
-  const { data: allSoftware, error: softwareListError } = await supabase
-    .from("software")
-    .select("*");
-
-  if (softwareListError || !allSoftware) {
-    return (
-      <main className="mx-auto max-w-5xl p-8">
-        <p className="mt-4">Database error: {softwareListError?.message}</p>
-      </main>
-    );
-  }
-
-  const slugs = resolveComparisonSlugs(
-    comparison,
-    allSoftware.map((item) => item.slug)
-  );
+  const slugs = parseComparisonSlug(comparison);
 
   if (!slugs) {
     notFound();
   }
 
   const [slugA, slugB] = slugs;
-  const productA = allSoftware.find((item) => item.slug === slugA) as
+
+  if (slugA === slugB) {
+    notFound();
+  }
+
+  const { data: matchedSoftware, error: softwareListError } = await supabase
+    .from("software")
+    .select("*")
+    .in("slug", [slugA, slugB]);
+
+  if (softwareListError) {
+    return (
+      <main className="mx-auto max-w-5xl p-8">
+        <p className="mt-4">Database error: {softwareListError.message}</p>
+      </main>
+    );
+  }
+
+  const productA = matchedSoftware?.find((item) => item.slug === slugA) as
     | Software
     | undefined;
-  const productB = allSoftware.find((item) => item.slug === slugB) as
+  const productB = matchedSoftware?.find((item) => item.slug === slugB) as
     | Software
     | undefined;
 
@@ -206,6 +214,9 @@ export default async function ComparePage({
           className="underline"
         >
           View {productB.name} profile
+        </Link>
+        <Link href="/compare" className="underline">
+          Choose different software
         </Link>
       </div>
 
