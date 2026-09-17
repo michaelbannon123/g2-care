@@ -93,6 +93,50 @@ function formatSupported(value: boolean | null) {
   return "Not verified";
 }
 
+function formatPrice(amount: number, currency: string | null) {
+  if (!currency) {
+    return amount.toLocaleString("en-GB");
+  }
+
+  return new Intl.NumberFormat("en-GB", {
+    style: "currency",
+    currency,
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  }).format(amount);
+}
+
+function SupportedBadge({ value }: { value: boolean | null }) {
+  const label = formatSupported(value);
+
+  const styles =
+    value === true
+      ? "bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300"
+      : value === false
+        ? "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300"
+        : "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400";
+
+  return (
+    <span
+      className={`inline-flex shrink-0 items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${styles}`}
+    >
+      {label}
+    </span>
+  );
+}
+
+function StatusBadge({ status }: { status: string | null }) {
+  if (!status) {
+    return null;
+  }
+
+  return (
+    <span className="inline-flex shrink-0 items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800 dark:bg-blue-900/40 dark:text-blue-300">
+      {status}
+    </span>
+  );
+}
+
 function Field({ label, value }: { label: string; value: ReactNode }) {
   if (value === null || value === undefined || value === "") {
     return null;
@@ -100,7 +144,7 @@ function Field({ label, value }: { label: string; value: ReactNode }) {
 
   return (
     <div className="mt-2 text-sm">
-      <span className="text-gray-500">{label}: </span>
+      <span className="text-gray-500 dark:text-gray-400">{label}: </span>
       <span>{value}</span>
     </div>
   );
@@ -128,7 +172,7 @@ function SourceLink({
       href={source.source_url}
       target="_blank"
       rel="noopener noreferrer"
-      className="mt-2 inline-block text-sm underline"
+      className="mt-2 inline-block text-sm text-gray-500 underline hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
     >
       Source: {source.source_name}
     </a>
@@ -196,15 +240,22 @@ export default async function SoftwarePage({
     (sources as Source[])?.map((source) => [source.id, source]) ?? []
   );
 
+  const careSettingsCount = settings?.length ?? 0;
+  const verifiedFeaturesCount = features?.length ?? 0;
+  const integrationsCount = integrations?.length ?? 0;
+  const sourceCount = sources?.length ?? 0;
+
   return (
     <main className="mx-auto max-w-3xl p-8">
-      <Link href="/" className="text-sm text-gray-500 underline">
+      <Link href="/" className="text-sm text-gray-500 underline dark:text-gray-400">
         &larr; Back to software
       </Link>
 
       <h1 className="mt-4 text-4xl font-bold">{software.name}</h1>
 
-      <p className="mt-3 text-gray-500">{software.description}</p>
+      <p className="mt-3 text-gray-500 dark:text-gray-400">
+        {software.description}
+      </p>
 
       <p className="mt-4 text-sm">
         Headquarters: {software.headquarters_country}
@@ -219,11 +270,39 @@ export default async function SoftwarePage({
         Visit website
       </a>
 
+      {/* Summary */}
+      <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="rounded-xl border border-gray-200 p-4 text-center dark:border-gray-800">
+          <div className="text-2xl font-bold">{careSettingsCount}</div>
+          <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+            Care settings
+          </div>
+        </div>
+        <div className="rounded-xl border border-gray-200 p-4 text-center dark:border-gray-800">
+          <div className="text-2xl font-bold">{verifiedFeaturesCount}</div>
+          <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+            Verified features
+          </div>
+        </div>
+        <div className="rounded-xl border border-gray-200 p-4 text-center dark:border-gray-800">
+          <div className="text-2xl font-bold">{integrationsCount}</div>
+          <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+            Integrations
+          </div>
+        </div>
+        <div className="rounded-xl border border-gray-200 p-4 text-center dark:border-gray-800">
+          <div className="text-2xl font-bold">{sourceCount}</div>
+          <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+            Sources
+          </div>
+        </div>
+      </div>
+
       {/* Pricing */}
-      <h2 className="mt-10 text-2xl font-semibold">Pricing</h2>
+      <h2 className="mt-12 text-2xl font-semibold">Pricing</h2>
 
       {!pricing || pricing.length === 0 ? (
-        <p className="mt-4 text-sm text-gray-500">
+        <p className="mt-4 text-sm text-gray-500 dark:text-gray-400">
           Pricing information not yet verified.
         </p>
       ) : (
@@ -231,32 +310,48 @@ export default async function SoftwarePage({
           {(pricing as Pricing[]).map((item) => (
             <article
               key={item.id}
-              className="rounded-xl border border-gray-200 p-6"
+              className="rounded-xl border border-gray-200 p-6 dark:border-gray-800"
             >
-              <Field label="Pricing model" value={item.pricing_model} />
-              <Field
-                label="Starting price"
-                value={item.starting_price !== null ? item.starting_price : null}
-              />
-              <Field label="Currency" value={item.currency} />
-              <Field label="Billing period" value={item.billing_period} />
+              <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                {item.starting_price !== null && (
+                  <span className="text-3xl font-bold">
+                    {formatPrice(item.starting_price, item.currency)}
+                  </span>
+                )}
+                {item.billing_period && (
+                  <span className="text-base text-gray-500 dark:text-gray-400">
+                    / {item.billing_period.toLowerCase()}
+                  </span>
+                )}
+              </div>
+
+              <div className="mt-3 flex flex-wrap items-center gap-3">
+                {item.pricing_model && (
+                  <span className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-700 dark:bg-gray-800 dark:text-gray-300">
+                    {item.pricing_model}
+                  </span>
+                )}
+                {item.pricing_public !== null && (
+                  <span className="inline-flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                    Publicly available pricing
+                    <SupportedBadge value={item.pricing_public} />
+                  </span>
+                )}
+              </div>
+
               <Field
                 label="Setup fee"
-                value={item.setup_fee !== null ? item.setup_fee : null}
+                value={
+                  item.setup_fee !== null
+                    ? formatPrice(item.setup_fee, item.currency)
+                    : null
+                }
               />
               <Field
                 label="Minimum contract length"
                 value={
                   item.minimum_contract_months !== null
                     ? `${item.minimum_contract_months} months`
-                    : null
-                }
-              />
-              <Field
-                label="Pricing publicly available"
-                value={
-                  item.pricing_public !== null
-                    ? formatSupported(item.pricing_public)
                     : null
                 }
               />
@@ -269,24 +364,22 @@ export default async function SoftwarePage({
       )}
 
       {/* Features */}
-      <h2 className="mt-10 text-2xl font-semibold">Features</h2>
+      <h2 className="mt-12 text-2xl font-semibold">Features</h2>
 
       {!features || features.length === 0 ? (
-        <p className="mt-4 text-sm text-gray-500">
+        <p className="mt-4 text-sm text-gray-500 dark:text-gray-400">
           Feature information not yet verified.
         </p>
       ) : (
-        <div className="mt-4 grid gap-4">
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
           {(features as Feature[]).map((item) => (
             <article
               key={item.id}
-              className="rounded-xl border border-gray-200 p-6"
+              className="rounded-xl border border-gray-200 p-4 dark:border-gray-800"
             >
-              <div className="flex items-center gap-2">
-                <h3 className="font-semibold">{item.feature}</h3>
-                <span className="text-sm text-gray-500">
-                  {formatSupported(item.supported)}
-                </span>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h3 className="font-medium">{item.feature}</h3>
+                <SupportedBadge value={item.supported} />
               </div>
               <Field label="Notes" value={item.notes} />
               <SourceLink sourceId={item.source_id} sourceMap={sourceMap} />
@@ -296,24 +389,22 @@ export default async function SoftwarePage({
       )}
 
       {/* Care settings */}
-      <h2 className="mt-10 text-2xl font-semibold">Care settings</h2>
+      <h2 className="mt-12 text-2xl font-semibold">Care settings</h2>
 
       {!settings || settings.length === 0 ? (
-        <p className="mt-4 text-sm text-gray-500">
+        <p className="mt-4 text-sm text-gray-500 dark:text-gray-400">
           Care setting information not yet verified.
         </p>
       ) : (
-        <div className="mt-4 grid gap-4">
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
           {(settings as CareSetting[]).map((item) => (
             <article
               key={item.id}
-              className="rounded-xl border border-gray-200 p-6"
+              className="rounded-xl border border-gray-200 p-4 dark:border-gray-800"
             >
-              <div className="flex items-center gap-2">
-                <h3 className="font-semibold">{item.setting}</h3>
-                <span className="text-sm text-gray-500">
-                  {formatSupported(item.supported)}
-                </span>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h3 className="font-medium">{item.setting}</h3>
+                <SupportedBadge value={item.supported} />
               </div>
               <Field label="Notes" value={item.notes} />
               <SourceLink sourceId={item.source_id} sourceMap={sourceMap} />
@@ -323,21 +414,25 @@ export default async function SoftwarePage({
       )}
 
       {/* Integrations */}
-      <h2 className="mt-10 text-2xl font-semibold">Integrations</h2>
+      <h2 className="mt-12 text-2xl font-semibold">Integrations</h2>
 
       {!integrations || integrations.length === 0 ? (
-        <p className="mt-4 text-sm text-gray-500">
+        <p className="mt-4 text-sm text-gray-500 dark:text-gray-400">
           Integration information not yet verified.
         </p>
       ) : (
-        <div className="mt-4 grid gap-4">
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
           {(integrations as Integration[]).map((item) => (
             <article
               key={item.id}
-              className="rounded-xl border border-gray-200 p-6"
+              className="rounded-xl border border-gray-200 p-4 dark:border-gray-800"
             >
-              <h3 className="font-semibold">{item.integration_name}</h3>
-              <Field label="Type" value={item.integration_type} />
+              <h3 className="text-lg font-semibold">{item.integration_name}</h3>
+              {item.integration_type && (
+                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                  {item.integration_type}
+                </p>
+              )}
               <Field label="Notes" value={item.notes} />
               <SourceLink sourceId={item.source_id} sourceMap={sourceMap} />
             </article>
@@ -346,12 +441,12 @@ export default async function SoftwarePage({
       )}
 
       {/* Regulatory & NHS status */}
-      <h2 className="mt-10 text-2xl font-semibold">
+      <h2 className="mt-12 text-2xl font-semibold">
         Regulatory &amp; NHS status
       </h2>
 
       {!regulatoryStatus || regulatoryStatus.length === 0 ? (
-        <p className="mt-4 text-sm text-gray-500">
+        <p className="mt-4 text-sm text-gray-500 dark:text-gray-400">
           Regulatory information not yet verified.
         </p>
       ) : (
@@ -359,11 +454,21 @@ export default async function SoftwarePage({
           {(regulatoryStatus as RegulatoryStatus[]).map((item) => (
             <article
               key={item.id}
-              className="rounded-xl border border-gray-200 p-6"
+              className="rounded-xl border border-gray-200 p-6 dark:border-gray-800"
             >
-              <Field label="Authority" value={item.authority} />
-              <Field label="Scheme" value={item.scheme} />
-              <Field label="Status" value={item.status} />
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div>
+                  {item.authority && (
+                    <h3 className="font-semibold">{item.authority}</h3>
+                  )}
+                  {item.scheme && (
+                    <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                      {item.scheme}
+                    </p>
+                  )}
+                </div>
+                <StatusBadge status={item.status} />
+              </div>
               <Field label="Reference" value={item.reference} />
               <Field label="Verified" value={formatDate(item.verified_at)} />
               <SourceLink sourceId={item.source_id} sourceMap={sourceMap} />
@@ -373,22 +478,22 @@ export default async function SoftwarePage({
       )}
 
       {/* Verified sources */}
-      <h2 className="mt-10 text-2xl font-semibold">Verified sources</h2>
+      <h2 className="mt-12 text-2xl font-semibold">Verified sources</h2>
 
       <div className="mt-4 grid gap-4">
         {(sources as Source[])?.map((source) => (
           <article
             key={source.id}
-            className="rounded-xl border border-gray-200 p-6"
+            className="rounded-xl border border-gray-200 p-6 dark:border-gray-800"
           >
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <h3 className="text-lg font-semibold">{source.source_name}</h3>
-              <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">
+              <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800 dark:bg-green-900/40 dark:text-green-300">
                 Verified source
               </span>
             </div>
 
-            <p className="mt-2 text-sm text-gray-500">
+            <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
               {source.source_type}
             </p>
 
@@ -402,13 +507,15 @@ export default async function SoftwarePage({
             </a>
 
             {formatDate(source.verified_at) && (
-              <p className="mt-2 text-sm text-gray-500">
+              <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
                 Verified on {formatDate(source.verified_at)}
               </p>
             )}
 
             {source.notes && (
-              <p className="mt-2 text-sm text-gray-500">{source.notes}</p>
+              <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                {source.notes}
+              </p>
             )}
           </article>
         ))}
